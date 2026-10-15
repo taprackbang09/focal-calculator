@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор фокусної відстані</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #EEF1F3;
+  --panel: #F9FAFB;
+  --ink: #16202A;
+  --muted: #5B6976;
+  --rule: #C9D2DA;
+  --grid: #DCE3E9;
+  --light: #E89A1C;
+  --light-soft: rgba(240, 169, 46, 0.22);
+  --light-inner: rgba(240, 169, 46, 0.40);
+  --sensor: #2E63C9;
+  --focus: #2E63C9;
+  --display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111921; --panel: #17212B; --ink: #E6ECF1; --muted: #93A1AE;
+    --rule: #2C3A47; --grid: #1E2A35; --light: #F5B947;
+    --light-soft: rgba(245, 185, 71, 0.16); --light-inner: rgba(245, 185, 71, 0.32);
+    --sensor: #79A3F2; --focus: #79A3F2; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111921; --panel: #17212B; --ink: #E6ECF1; --muted: #93A1AE;
+  --rule: #2C3A47; --grid: #1E2A35; --light: #F5B947;
+  --light-soft: rgba(245, 185, 71, 0.16); --light-inner: rgba(245, 185, 71, 0.32);
+  --sensor: #79A3F2; --focus: #79A3F2; color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.app {
+  max-width: 1240px; margin: 0 auto; padding: 28px 24px 40px;
+  display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 28px;
+  align-items: start;
+}
+header { grid-column: 1 / -1; }
+h1 {
+  font-family: var(--display); font-weight: 700; font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+  letter-spacing: -0.01em; margin: 0 0 4px; line-height: 1.2;
+}
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.controls { display: grid; gap: 20px; }
+fieldset {
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  margin: 0; padding: 16px 18px 18px; min-width: 0;
+}
+legend {
+  font-family: var(--display); font-weight: 500; font-size: 0.95rem;
+  padding: 0 6px; margin-left: -6px;
+}
+label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+select, input[type="number"] {
+  width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 8px 10px; font-variant-numeric: tabular-nums;
+}
+select:focus-visible, input:focus-visible, .seg input:focus-visible + span {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.hint { font-size: 0.8rem; color: var(--muted); margin: 10px 0 0; }
+.pitch { margin-top: 12px; }
+.pitch[hidden] { display: none; }
+.pitch .hint { margin-top: 6px; }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.seg label { margin: 0; position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span {
+  display: block; text-align: center; padding: 8px 4px; font-size: 0.85rem; color: var(--ink);
+  border-right: 1px solid var(--rule); cursor: pointer; line-height: 1.25;
+}
+.seg label:last-child span { border-right: 0; }
+.seg span b { display: block; font-family: var(--display); font-weight: 500; font-size: 1rem; }
+.seg input:checked + span { background: var(--ink); color: var(--paper); }
+
+.fov-row { display: grid; grid-template-columns: 1fr 92px; gap: 12px; align-items: center; margin-top: 16px; }
+input[type="range"] { width: 100%; accent-color: var(--light); margin: 0; height: 28px; }
+.fov-num { position: relative; }
+.fov-num input { padding-right: 22px; }
+.fov-num i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); pointer-events: none; }
+.ticks { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-top: 2px; padding-right: 104px; }
+
+.stage { min-width: 0; display: grid; gap: 16px; }
+.result {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 32px;
+  border-bottom: 2px solid var(--ink); padding-bottom: 14px;
+}
+.result .label { font-size: 0.9rem; color: var(--muted); margin: 0 0 2px; }
+.f-value {
+  font-family: var(--display); font-weight: 700; line-height: 1;
+  font-size: clamp(3rem, 8vw, 5.4rem); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; margin: 0;
+}
+.f-value small { font-size: 0.35em; font-weight: 500; letter-spacing: 0; margin-left: 0.15em; color: var(--muted); }
+.f-value.empty { font-size: clamp(1.1rem, 2.5vw, 1.4rem); font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.derived { display: grid; grid-template-columns: repeat(4, auto); gap: 2px 22px; font-variant-numeric: tabular-nums; }
+.derived dt { font-size: 0.78rem; color: var(--muted); }
+.derived dd { margin: 0; font-weight: 600; font-size: 1.05rem; }
+
+.drawing { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.drawing svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 10px 16px; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--rule); }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 4px; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
+.legend .l-sensor::before { background: var(--sensor); }
+.legend .l-light::before { background: var(--light); }
+.legend .l-grid { margin-left: auto; color: var(--ink); }
+.legend .l-grid::before { display: none; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.s-grid { stroke: var(--grid); stroke-width: 1; fill: none; }
+.s-axis { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 6 5; }
+.s-cone { fill: var(--light-soft); }
+.s-inner { fill: var(--light-inner); }
+.s-ray { stroke: var(--light); stroke-width: 1.6; fill: none; }
+.s-sensor { fill: var(--sensor); }
+.s-lens { fill: var(--panel); stroke: var(--ink); stroke-width: 1.6; }
+.s-dim { stroke: var(--ink); stroke-width: 1; fill: none; }
+.s-arc { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.t-dim { font-size: 15px; font-weight: 600; }
+.t-note { font-size: 13px; fill: var(--muted); }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; padding: 20px 16px 32px; gap: 20px; }
+  .stage { order: -1; }
+  header { order: -2; }
+  .derived { grid-template-columns: repeat(2, auto); }
+}
+@media (max-width: 420px) {
+  .row3 { grid-template-columns: 1fr 1fr; }
+  .row3 > div:last-child { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <h1>Калькулятор фокусної відстані</h1>
+    <p>Вкажіть розмір матриці та потрібний кут огляду — фокусна відстань і креслення оновлюються одразу.</p>
+  </header>
+
+  <section class="controls" aria-label="Параметри">
+    <fieldset>
+      <legend>Матриця</legend>
+      <label for="preset">Стандартний формат</label>
+      <select id="preset"></select>
+      <div class="pitch" id="pitchRow" hidden>
+        <label for="pitch">Крок пікселя</label>
+        <select id="pitch">
+          <option value="8">8 мкм</option>
+          <option value="12" selected>12 мкм</option>
+          <option value="17">17 мкм</option>
+        </select>
+        <p class="hint">Розмір матриці = кількість пікселів × крок пікселя.</p>
+      </div>
+      <div class="row3">
+        <div><label for="w">Ширина, мм</label><input id="w" type="number" min="0.01" step="0.01" inputmode="decimal"></div>
+        <div><label for="h">Висота, мм</label><input id="h" type="number" min="0.01" step="0.01" inputmode="decimal"></div>
+        <div><label for="d">Діагональ, мм</label><input id="d" type="number" min="0.01" step="0.01" inputmode="decimal"></div>
+      </div>
+      <p class="hint">Діагональ рахується з ширини й висоти. Якщо змінити її вручну, ширина й висота масштабуються зі збереженням пропорцій.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Кут огляду</legend>
+      <div class="seg" role="radiogroup" aria-label="Тип кута">
+        <label><input type="radio" name="type" value="H" checked><span><b>H</b>Горизонт.</span></label>
+        <label><input type="radio" name="type" value="V"><span><b>V</b>Вертик.</span></label>
+        <label><input type="radio" name="type" value="D"><span><b>D</b>Діагон.</span></label>
+      </div>
+      <div class="fov-row">
+        <input id="fovRange" type="range" min="1" max="179" step="0.1" value="90" aria-label="Кут огляду, градуси">
+        <div class="fov-num"><input id="fovNum" type="number" min="1" max="179" step="0.1" value="90" aria-label="Кут огляду, градуси"><i>°</i></div>
+      </div>
+      <div class="ticks" aria-hidden="true"><span>1°</span><span>90°</span><span>179°</span></div>
+    </fieldset>
+  </section>
+
+  <section class="stage" aria-live="polite">
+    <div class="result">
+      <div>
+        <p class="label">Фокусна відстань</p>
+        <p class="f-value" id="fOut">—</p>
+      </div>
+      <dl class="derived">
+        <div><dt>Кут H</dt><dd id="oH">—</dd></div>
+        <div><dt>Кут V</dt><dd id="oV">—</dd></div>
+        <div><dt>Кут D</dt><dd id="oD">—</dd></div>
+        <div><dt>Екв. 35 мм</dt><dd id="oEq">—</dd></div>
+      </dl>
+    </div>
+
+    <figure class="drawing" style="margin:0">
+      <svg id="svg" viewBox="0 0 800 440" role="img" aria-label="Схема: матриця, об'єктив і кут огляду"></svg>
+      <figcaption class="legend">
+        <span class="l-sensor">матриця (розмір по обраній осі)</span>
+        <span class="l-light">промені, що визначають кут огляду</span>
+        <span class="l-grid" id="gridNote"></span>
+      </figcaption>
+    </figure>
+  </section>
+</main>
+
+<script>
+(function () {
+  const PRESETS = [
+    { id: "1/4",   name: '1/4"',            w: 3.60,  h: 2.70 },
+    { id: "1/3",   name: '1/3"',            w: 4.80,  h: 3.60 },
+    { id: "1/2.9", name: '1/2.9"',          w: 4.96,  h: 3.72 },
+    { id: "1/2.8", name: '1/2.8"',          w: 5.12,  h: 3.84 },
+    { id: "1/2.7", name: '1/2.7"',          w: 5.37,  h: 4.04 },
+    { id: "1/2.5", name: '1/2.5"',          w: 5.76,  h: 4.29 },
+    { id: "1/2.3", name: '1/2.3"',          w: 6.17,  h: 4.55 },
+    { id: "1/1.8", name: '1/1.8"',          w: 7.18,  h: 5.32 },
+    { id: "2/3",   name: '2/3"',            w: 8.80,  h: 6.60 },
+    { id: "1",     name: '1"',              w: 13.20, h: 8.80 },
+    { id: "4/3",   name: 'Micro 4/3',       w: 17.30, h: 13.00 },
+    { id: "apsc",  name: 'APS-C',           w: 23.60, h: 15.60 },
+    { id: "ff",    name: 'Повний кадр (35 мм)', w: 36.00, h: 24.00 },
+    { id: "t80",   name: "80 × 60",     px: 80,   py: 60,   thermal: true },
+    { id: "t160",  name: "160 × 120",   px: 160,  py: 120,  thermal: true },
+    { id: "t256",  name: "256 × 192",   px: 256,  py: 192,  thermal: true },
+    { id: "t384",  name: "384 × 288",   px: 384,  py: 288,  thermal: true },
+    { id: "t640",  name: "640 × 512",   px: 640,  py: 512,  thermal: true },
+    { id: "t1024", name: "1024 × 768",  px: 1024, py: 768,  thermal: true }
+  ];
+  const FF_DIAG = Math.hypot(36, 24);
+  const $ = (id) => document.getElementById(id);
+  const presetEl = $("preset"), wEl = $("w"), hEl = $("h"), dEl = $("d");
+  const rangeEl = $("fovRange"), numEl = $("fovNum"), svg = $("svg");
+
+  const state = { w: 5.12, h: 3.84, d: Math.hypot(5.12, 3.84), type: "H", fov: 90 };
+
+  // ---- presets
+  const pitchEl = $("pitch"), pitchRow = $("pitchRow");
+  const optical = PRESETS.filter(p => !p.thermal), thermal = PRESETS.filter(p => p.thermal);
+  presetEl.innerHTML =
+    `<optgroup label="Звичайні камери">` +
+    optical.map(p => `<option value="${p.id}">${p.name} — ${p.w.toFixed(2)} × ${p.h.toFixed(2)} мм</option>`).join("") +
+    `</optgroup><optgroup label="Тепловізори (роздільна здатність)">` +
+    thermal.map(p => `<option value="${p.id}">${p.name} пікс.</option>`).join("") +
+    `</optgroup><option value="custom">Власний розмір</option>`;
+  presetEl.value = "1/2.8";
+
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const fmt = (x, digits = 2) => x.toLocaleString("uk-UA", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+  function syncSensorFields(skip) {
+    if (skip !== "w") wEl.value = r2(state.w);
+    if (skip !== "h") hEl.value = r2(state.h);
+    if (skip !== "d") dEl.value = r2(state.d);
+  }
+
+  function applyPreset() {
+    const p = PRESETS.find(x => x.id === presetEl.value);
+    if (!p) { update(); return; }
+    if (p.thermal) {
+      const pitch = parseFloat(pitchEl.value) / 1000;
+      state.w = p.px * pitch; state.h = p.py * pitch;
+    } else { state.w = p.w; state.h = p.h; }
+    state.d = Math.hypot(state.w, state.h);
+    syncSensorFields(); update();
+  }
+  presetEl.addEventListener("change", applyPreset);
+  pitchEl.addEventListener("change", applyPreset);
+
+  function onWH(which) {
+    const v = parseFloat((which === "w" ? wEl : hEl).value);
+    presetEl.value = "custom";
+    state[which] = v > 0 ? v : NaN;
+    state.d = (state.w > 0 && state.h > 0) ? Math.hypot(state.w, state.h) : NaN;
+    dEl.value = state.d > 0 ? r2(state.d) : "";
+    update();
+  }
+  wEl.addEventListener("input", () => onWH("w"));
+  hEl.addEventListener("input", () => onWH("h"));
+  dEl.addEventListener("input", () => {
+    const v = parseFloat(dEl.value);
+    presetEl.value = "custom";
+    if (!(v > 0)) { state.d = NaN; update(); return; }
+    if (state.w > 0 && state.h > 0) {
+      const k = v / Math.hypot(state.w, state.h);
+      state.w *= k; state.h *= k;
+    }
+    state.d = v;
+    syncSensorFields("d"); update();
+  });
+  [wEl, hEl, dEl].forEach(el => el.addEventListener("blur", () => syncSensorFields()));
+
+  // ---- angle
+  document.querySelectorAll('input[name="type"]').forEach(r =>
+    r.addEventListener("change", () => { state.type = r.value; update(); }));
+
+  rangeEl.addEventListener("input", () => {
+    state.fov = parseFloat(rangeEl.value); numEl.value = state.fov; update();
+  });
+  numEl.addEventListener("input", () => {
+    const v = parseFloat(numEl.value);
+    if (v >= 1 && v <= 179) { state.fov = v; rangeEl.value = v; update(); }
+  });
+  numEl.addEventListener("blur", () => {
+    let v = parseFloat(numEl.value);
+    if (isNaN(v)) v = state.fov;
+    v = Math.min(179, Math.max(1, v));
+    state.fov = v; numEl.value = v; rangeEl.value = v; update();
+  });
+
+  // ---- math
+  const sizeFor = (t) => t === "H" ? state.w : t === "V" ? state.h : state.d;
+  const focal = (size, deg) => size / (2 * Math.tan((deg * Math.PI / 180) / 2));
+  const angleFor = (size, f) => 2 * Math.atan(size / (2 * f)) * 180 / Math.PI;
+
+  function update() {
+    const cur = PRESETS.find(x => x.id === presetEl.value);
+    pitchRow.hidden = !(cur && cur.thermal);
+    const size = sizeFor(state.type);
+    const ok = size > 0 && state.fov >= 1 && state.fov <= 179;
+    const fOut = $("fOut");
+    if (!ok) {
+      fOut.className = "f-value empty";
+      fOut.textContent = "Вкажіть розмір матриці більше нуля";
+      ["oH", "oV", "oD", "oEq"].forEach(id => $(id).textContent = "—");
+      svg.innerHTML = ""; $("gridNote").textContent = "";
+      return;
+    }
+    const f = focal(size, state.fov);
+    fOut.className = "f-value";
+    fOut.innerHTML = `${fmt(f)}<small>мм</small>`;
+    $("oH").textContent = state.w > 0 ? fmt(angleFor(state.w, f), 1) + "°" : "—";
+    $("oV").textContent = state.h > 0 ? fmt(angleFor(state.h, f), 1) + "°" : "—";
+    $("oD").textContent = state.d > 0 ? fmt(angleFor(state.d, f), 1) + "°" : "—";
+    $("oEq").textContent = state.d > 0 ? fmt(f * FF_DIAG / state.d, 1) + " мм" : "—";
+    draw(size, f);
+  }
+
+  // ---- drawing
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  const NICE = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+
+  function draw(size, f) {
+    const VW = 800, VH = 440, x0 = 120, cy = 205;
+    const s = Math.min(280 / size, 480 / f);       // px per mm
+    const hp = size * s, fp = f * s, xl = x0 + fp;
+    const half = (state.fov * Math.PI / 180) / 2;
+    const L = 4000, c = Math.cos(half) * L, sn = Math.sin(half) * L;
+    const top = cy - hp / 2, bot = cy + hp / 2;
+
+    svg.innerHTML = "";
+    // grid in real millimetres
+    const step = NICE.find(n => n * s >= 18) || NICE[NICE.length - 1];
+    const gp = step * s;
+    const defs = el("defs", {});
+    const pat = el("pattern", { id: "g", width: gp, height: gp, patternUnits: "userSpaceOnUse", x: x0, y: cy });
+    pat.appendChild(el("path", { d: `M ${gp} 0 L 0 0 0 ${gp}`, class: "s-grid" }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+    svg.appendChild(el("rect", { x: 0, y: 0, width: VW, height: VH, fill: "url(#g)" }));
+    $("gridNote").textContent = `1 клітинка = ${step.toLocaleString("uk-UA")} мм`;
+
+    // optical axis
+    svg.appendChild(el("line", { x1: 20, y1: cy, x2: VW, y2: cy, class: "s-axis" }));
+
+    // light: outward cone and inner triangle
+    svg.appendChild(el("polygon", { points: `${xl},${cy} ${xl + c},${cy - sn} ${xl + c},${cy + sn}`, class: "s-cone" }));
+    svg.appendChild(el("polygon", { points: `${x0},${top} ${x0},${bot} ${xl},${cy}`, class: "s-inner" }));
+    svg.appendChild(el("line", { x1: x0, y1: top, x2: xl + c, y2: cy + sn, class: "s-ray" }));
+    svg.appendChild(el("line", { x1: x0, y1: bot, x2: xl + c, y2: cy - sn, class: "s-ray" }));
+
+    // FOV arc
+    const ar = 64;
+    const ax = xl + ar * Math.cos(half), ay1 = cy - ar * Math.sin(half), ay2 = cy + ar * Math.sin(half);
+    svg.appendChild(el("path", { d: `M ${ax} ${ay1} A ${ar} ${ar} 0 0 1 ${ax} ${ay2}`, class: "s-arc" }));
+    const fovLbl = `${state.type} ${fmt(state.fov, state.fov % 1 ? 1 : 0)}°`;
+    svg.appendChild(el("text", { x: xl + ar + 10, y: cy - 8, class: "t-dim" }, fovLbl));
+
+    // sensor
+    svg.appendChild(el("rect", { x: x0 - 5, y: top, width: 6, height: Math.max(hp, 1.5), class: "s-sensor", rx: 1 }));
+
+    // lens
+    const lh = 72, lb = 11;
+    svg.appendChild(el("path", {
+      d: `M ${xl} ${cy - lh / 2} Q ${xl + lb * 2} ${cy} ${xl} ${cy + lh / 2} Q ${xl - lb * 2} ${cy} ${xl} ${cy - lh / 2} Z`,
+      class: "s-lens"
+    }));
+    svg.appendChild(el("circle", { cx: xl, cy: cy, r: 2.5, fill: "var(--ink)" }));
+
+    // sensor dimension (vertical, left)
+    const dx = x0 - 34, tk = 6;
+    svg.appendChild(el("path", {
+      d: `M ${dx} ${top} V ${bot} M ${dx - tk} ${top} H ${dx + tk} M ${dx - tk} ${bot} H ${dx + tk}`, class: "s-dim"
+    }));
+    const sizeName = state.type === "H" ? "ширина" : state.type === "V" ? "висота" : "діагональ";
+    const sl = el("text", { x: dx - 12, y: cy, class: "t-dim", "text-anchor": "middle", transform: `rotate(-90 ${dx - 12} ${cy})` },
+      `${fmt(size)} мм`);
+    svg.appendChild(sl);
+    svg.appendChild(el("text", { x: x0 - 2, y: Math.max(top - 12, 18), class: "t-note", "text-anchor": "middle" }, `матриця, ${sizeName}`));
+
+    // focal dimension (horizontal, below)
+    const yf = Math.min(Math.max(bot, cy + lh / 2) + 34, VH - 34);
+    svg.appendChild(el("path", {
+      d: `M ${x0} ${yf} H ${xl} M ${x0} ${yf - tk} V ${yf + tk} M ${xl} ${yf - tk} V ${yf + tk}`, class: "s-dim"
+    }));
+    svg.appendChild(el("text", { x: Math.max((x0 + xl) / 2, x0 + 4), y: yf + 22, class: "t-dim", "text-anchor": fp < 90 ? "start" : "middle" },
+      `f = ${fmt(f)} мм`));
+    if (fp > 80) {
+      svg.appendChild(el("text", { x: xl, y: Math.max(cy - lh / 2 - 12, 18), class: "t-note", "text-anchor": "middle" }, "об'єктив"));
+    }
+  }
+
+  syncSensorFields();
+  update();
+})();
+</script>
+</body>
+</html>
